@@ -15,3 +15,8 @@ ip_pool_inband_map = {
         size = 118
         vlan = 100        
 }
+
+api_key   = "82435298523923013015610561060216502156102"
+secretkey = "something.pem"
+endpoint  = "https://www.intersight.com"
+organization = "0343234235235"
