@@ -1,0 +1,17 @@
+prefix = "tf-test1"
+intersight_tag = {
+  key = "test"
+  value = "tf"
+}
+servername = "tfg9-blade01"
+fcconnectivity = true
+#false - does not add hba or any fc policies
+
+ip_pool_inband_map = {
+        gateway     = "10.10.10.1"
+        netmask     = "255.255.255.0"
+        primary_dns = "8.8.8.8"
+        ipv4_block = "10.10.10.10"
+        size = 118
+        vlan = 100        
+}
