@@ -57,8 +57,8 @@ resource "intersight_bios_policy" "biospol1" {
 }
 
 resource "intersight_boot_precision_policy" "bootpol1" {
-  name                     = "${var.prefix}-bootpol.kvm_m2raid"
-  description              = "test policy kvm then m.2 raid"
+  name                     = "${var.prefix}-bootpol.kvm_m2raid_fmezz"
+  description              = "test policy kvm then m.2 raid then FMEZZ raid"
   configured_boot_mode     = "Uefi"
   enforce_uefi_secure_boot = false
   organization {
@@ -79,6 +79,20 @@ resource "intersight_boot_precision_policy" "bootpol1" {
     object_type = "boot.LocalDisk"
     additional_properties = jsonencode({
       Slot = "MRAID"
+      Bootloader = {
+        Description = ""
+        Name        = ""
+        ObjectType  = "boot.Bootloader"
+        Path        = ""
+      }
+    })
+  }
+  boot_devices {
+    enabled     = true
+    name        = "FMEZZ"
+    object_type = "boot.LocalDisk"
+    additional_properties = jsonencode({
+      Slot = "FMEZZ1-SAS"
       Bootloader = {
         Description = ""
         Name        = ""
@@ -120,6 +134,22 @@ resource "intersight_ippool_pool" "ippool_inband1" {
   }
 }
 
+resource "intersight_uuidpool_pool" "uuidpool_pool1" {
+  name             = "${var.prefix}-uuid_pool"
+  description      = "uuidpool"
+  assignment_order = "sequential"
+  prefix           = "c15c04c5-0000-0000"
+  uuid_suffix_blocks {
+    class_id    = "uuidpool.UuidBlock"
+    object_type = "uuidpool.UuidBlock"
+    from        = "cafe-012300000001"
+    to          = "cafe-0123000000ff"
+  }
+  organization {
+    object_type = "organization.Organization"
+    moid        = var.organization
+  }
+}
 
 
 resource "intersight_fcpool_pool" "fcwwpn_A" {
@@ -637,8 +667,8 @@ resource "intersight_vnic_fc_network_policy" "fc_netvsan_A" {
   count = var.fcconnectivity ? 1 : 0
   name = "${var.prefix}-fc_vsan.A"
   vsan_settings {
-    id = 10
-    default_vlan_id = 10
+    id = var.vsan_id_A
+    default_vlan_id = var.vsan_id_A
   }
   organization {
     object_type = "organization.Organization"
@@ -649,8 +679,8 @@ resource "intersight_vnic_fc_network_policy" "fc_netvsan_B" {
   count = var.fcconnectivity ? 1 : 0
   name = "${var.prefix}-fc_vsan.B"
   vsan_settings {
-    id = 11
-    default_vlan_id = 11
+    id = var.vsan_id_B
+    default_vlan_id = var.vsan_id_B
   }
   organization {
     object_type = "organization.Organization"
@@ -734,7 +764,7 @@ resource "intersight_vnic_fc_if" "fc0" {
     */
     auto_pci_link = true
     auto_slot_id = true
-    switch_id = "B"
+    switch_id = "A"
   }
   wwpn_address_type = "POOL"
   wwpn_pool = [ {
@@ -873,10 +903,10 @@ resource "intersight_networkconfig_policy" "netcfg1" {
   }
 }
 
-/* not applicable to M.2
-resource "intersight_storage_drive_group" "raid_group1" {
+#This will handle SSD's in FMEZZ Controller  policy creation (not part of SP created)
+resource "intersight_storage_drive_group" "fmezz_raid_group1" {
   #(RO) type       = 0
-  name       = "M2_RAID1"
+  name       = "FMEZZ_RAID1"
   raid_level = "Raid1"
   manual_drive_group {
     span_groups {
@@ -884,7 +914,7 @@ resource "intersight_storage_drive_group" "raid_group1" {
     }
   }
   virtual_drives {
-    name                = "OS"
+    name                = "VDBoot"
     size                = 0
     expand_to_available = true
     boot_drive          = true
@@ -898,15 +928,36 @@ resource "intersight_storage_drive_group" "raid_group1" {
     }
   }
   storage_policy {
-     moid = intersight_storage_storage_policy.storpol1.moid
+     moid = intersight_storage_storage_policy.storpol2.moid
   }
 }
-*/
+
+resource "intersight_storage_storage_policy" "storpol2" {
+  name                     = "${var.prefix}-storpolicy.FMEZZ_RAID1"
+  use_jbod_for_vd_creation = false
+  description              = "storage policy SSD in raid 1 for boot"
+  unused_disks_state       = "NoChange"
+  organization {
+    object_type = "organization.Organization"
+    moid        = var.organization
+  }
+  global_hot_spares = ""
+  #m2_virtual_drive {
+  #  enable      = true
+  #  controller_slot = "MSTOR-RAID-1"
+  #  object_type = "storage.M2VirtualDriveConfig"
+  #}
+  #drive_group [ {
+  #   moid = intersight_storage_drive_group.fmezz_raid_group1.moid
+  #   object_type = "storage.DriveGroup"
+  #} ]
+  # always indicate on child which is its parent, not that a parent has a child!!!.
+}
 
 resource "intersight_storage_storage_policy" "storpol1" {
   name                     = "${var.prefix}-storpolicy.M2_RAID1"
   use_jbod_for_vd_creation = false
-  description              = "storage policy ssd in raid 1 for boot"
+  description              = "storage policy M2 in raid 1 for boot"
   unused_disks_state       = "NoChange"
   organization {
     object_type = "organization.Organization"
@@ -915,7 +966,7 @@ resource "intersight_storage_storage_policy" "storpol1" {
   global_hot_spares = ""
   m2_virtual_drive {
     enable      = true
-    controller_slot = "MSTOR-RAID-1,MSTOR-RAID-2"
+    controller_slot = "MSTOR-RAID-1"
     object_type = "storage.M2VirtualDriveConfig"
   }
   # drive_group {
@@ -929,10 +980,10 @@ resource "intersight_storage_storage_policy" "storpol1" {
 
 
 
-#-----------------------------------------------------------
+#--------------------------M6 Server---------------------------------
 
-resource "intersight_server_profile" "server1" {
-  name   = var.servername
+resource "intersight_server_profile" "serverm6" {
+  name   = "${var.servername}-m6"
   description = "server profile deployed through terraform"
   action = "No-op"
   tags = [
@@ -948,6 +999,14 @@ resource "intersight_server_profile" "server1" {
   }
   target_platform = "FIAttached"
   server_assignment_mode = "None"
+  uuid_address_type = "POOL"
+  uuid_pool = [ {
+    moid = intersight_uuidpool_pool.uuidpool_pool1.moid
+    object_type = "uuidpool.Pool"
+    additional_properties = ""
+    class_id = ""
+    selector = ""
+  } ]
 
   policy_bucket = concat ([
    {
@@ -1009,6 +1068,110 @@ resource "intersight_server_profile" "server1" {
    
    {
      moid = intersight_storage_storage_policy.storpol1.moid
+     object_type           = "storage.StoragePolicy",
+     class_id              = "storage.StoragePolicy",
+     additional_properties = "",
+     selector              = ""
+   } 
+  ], var.fcconnectivity ? [{
+     moid = intersight_vnic_san_connectivity_policy.vhbasanconn1[0].moid
+     object_type           = "vnic.SanConnectivityPolicy",
+     class_id              = "vnic.SanConnectivityPolicy",
+     additional_properties = "",
+     selector              = ""
+   }]: [])
+}
+
+
+
+#--------------------------M5 Server---------------------------------
+
+resource "intersight_server_profile" "serverm5" {
+  name   = "${var.servername}-m5"
+  description = "server profile deployed through terraform"
+  action = "No-op"
+  tags = [
+      {
+          additional_properties = "",
+          key = var.intersight_tag.key,
+          value = var.intersight_tag.value
+      }
+  ]
+  organization {
+    object_type = "organization.Organization"
+    moid        = var.organization
+  }
+  target_platform = "FIAttached"
+  server_assignment_mode = "None"
+  uuid_address_type = "POOL"
+  uuid_pool = [ {
+    moid = intersight_uuidpool_pool.uuidpool_pool1.moid
+    object_type = "uuidpool.Pool"
+    additional_properties = ""
+    class_id = ""
+    selector = ""
+  } ]
+
+  policy_bucket = concat ([
+   {
+     moid = intersight_ntp_policy.ntp1.moid,
+     object_type           = "ntp.Policy",
+     class_id              = "ntp.Policy",
+     additional_properties = "",
+     selector              = ""
+   },
+   {
+     moid = intersight_power_policy.srv_powerpol.moid,
+     object_type           = "power.Policy",
+     class_id              = "power.Policy",
+     additional_properties = "",
+     selector              = ""
+   },
+   {
+     moid = intersight_access_policy.imc_access_srv1.moid,
+     object_type           = "access.Policy",
+     class_id              = "access.Policy",
+     additional_properties = "",
+     selector              = ""
+   },
+   {
+     moid = intersight_bios_policy.biospol1.moid,
+     object_type           = "bios.Policy",
+     class_id              = "bios.Policy",
+     additional_properties = "",
+     selector              = ""
+   },
+   {
+     moid = intersight_boot_precision_policy.bootpol1.moid,
+     object_type           = "boot.PrecisionPolicy",
+     class_id              = "boot.PrecisionPolicy",
+     additional_properties = "",
+     selector              = ""
+   },
+   {
+     moid = intersight_vmedia_policy.vmedia1.moid,
+     object_type           = "vmedia.Policy",
+     class_id              = "vmedia.Policy",
+     additional_properties = "",
+     selector              = ""
+   },
+   {
+     moid = intersight_kvm_policy.kvm1.moid
+     object_type           = "kvm.Policy",
+     class_id              = "kvm.Policy",
+     additional_properties = "",
+     selector              = ""
+   },
+   {
+     moid = intersight_vnic_lan_connectivity_policy.vniclancon1.moid,
+     object_type           = "vnic.LanConnectivityPolicy",
+     class_id              = "vnic.LanConnectivityPolicy",
+     additional_properties = "",
+     selector              = ""
+   },
+   
+   {
+     moid = intersight_storage_storage_policy.storpol2.moid
      object_type           = "storage.StoragePolicy",
      class_id              = "storage.StoragePolicy",
      additional_properties = "",

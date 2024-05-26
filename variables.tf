@@ -95,7 +95,7 @@ variable "macpool_size" {
 variable "vlan_allowed_eth0_eth1" {
     type = string
     description = "vlans allowed in eth0 and eth1"
-    default = "2-3914"
+    default = "2-300,1600,1700"
 }
 variable "native_vlan_eth0_eth1" {
     type = string
@@ -106,13 +106,26 @@ variable "native_vlan_eth0_eth1" {
 variable "vlan_allowed_eth2_eth3" {
     type = string
     description = "vlans allowed in eth0 and eth1"
-    default = "2-3914"
+    default = "2-300,1600,1700"
 }
 variable "native_vlan_eth2_eth3" {
     type = string
     description = "vlans allowed in eth0 and eth1"
     default = "2"
 }
+
+variable "vsan_id_A" {
+    type = number
+    description = "VSAN_ID Fabric A"
+    default = 100
+}
+
+variable "vsan_id_B" {
+    type = number
+    description = "VSAN_ID Fabric B"
+    default = 200
+}
+
 
 variable "ip_pool_inband_map" {
     type = map(string)
@@ -121,7 +134,7 @@ variable "ip_pool_inband_map" {
         netmask     = "255.255.255.254"
         primary_dns = "8.8.8.8"
         ipv4_block = "1.1.1.10"
-        size = 128
-        vlan = 99
+        size = 130
+        vlan = 1700
     }
 }
