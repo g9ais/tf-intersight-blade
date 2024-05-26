@@ -134,6 +134,7 @@ resource "intersight_ippool_pool" "ippool_inband1" {
   }
 }
 
+#This might need a revisit - Intersight does not like updating uuid pool even if in place.
 resource "intersight_uuidpool_pool" "uuidpool_pool1" {
   name             = "${var.prefix}-uuid_pool"
   description      = "uuidpool"
